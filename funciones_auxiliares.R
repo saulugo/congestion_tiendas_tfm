@@ -159,7 +159,7 @@ predice_indice_congestion <- function(l_tiendas,fecha_ini_train, fecha_fin_train
       loginfo()
     
     m_tickets <- prophet(train_data_tickets)
-    future_tickets <- make_future_dataframe(m, periods=96*7, freq = 15*60)
+    future_tickets <- make_future_dataframe(m_tickets, periods=96*7, freq = 15*60)
     
     # haciendo la predicción
     
@@ -181,7 +181,7 @@ predice_indice_congestion <- function(l_tiendas,fecha_ini_train, fecha_fin_train
       loginfo()
     
     m_ticket_medio <- prophet(train_data_ticket_medio)
-    future_ticket_medio <- make_future_dataframe(m, periods=96*7, freq = 15*60)
+    future_ticket_medio <- make_future_dataframe(m_ticket_medio, periods=96*7, freq = 15*60)
     
     # haciendo la predicción
     
@@ -203,7 +203,7 @@ predice_indice_congestion <- function(l_tiendas,fecha_ini_train, fecha_fin_train
       loginfo()
     
     m_unidades <- prophet(train_data_unidades)
-    future_unidades <- make_future_dataframe(m, periods=96*7, freq = 15*60)
+    future_unidades <- make_future_dataframe(m_unidades, periods=96*7, freq = 15*60)
     
     
     # haciendo la predicción
