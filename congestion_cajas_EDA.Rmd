@@ -1,0 +1,430 @@
+---
+title: "Congestión en Cajas"
+author: "Saúl Lugo"
+date: "15/5/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Entendimiento de los datos
+
+## Lectura de los datos
+```{r lectura_datos}
+library(tidyverse)
+
+setwd("C:/Users/sll017es/Documents/master/TFM/codigo")
+
+data <- read.csv("data/data.csv")
+
+
+
+
+data_1290 <- read_csv("data/data_tienda_1290.csv") #tienda DIA
+data_2266 <- read_csv("data/data_tienda_2266.csv") #tienda DIA
+data_2701 <- read_csv("data/data_tienda_2701.csv") #tienda DIA
+data_6467 <- read_csv("data/data_tienda_6467.csv") #tienda DIA
+data_10061 <- read_csv("data/data_tienda_10061.csv") #tienda DIA
+data_16139 <- read_csv("data/data_tienda_16139.csv") #tienda DIA
+data_52288 <- read_csv("data/data_tienda_52288.csv") #tienda LA PLAZA
+data_53116 <- read_csv("data/data_tienda_53116.csv") #tienda DIA y luego LA PLAZA
+data_60850 <- read_csv("data/data_tienda_60850.csv") #tienda CLAREL
+data_75223 <- read_csv("data/data_tienda_75223.csv") #tienda CLAREL
+
+```
+
+## Recolección de los datos
+DIA en España posee cerca de 5000 tiendas. Para realizar este estudio se han seleccionado 10 tiendas de manera aleatorio. Cabe resaltar que 10 tiendas es una muestra muy pequeña si se tratase de un proyecto que se quiera llevar a producción, pero para este análisis académico se considera suficiente. Además, se han obtenido datos de ventas de estas tiendas en el período comprendido de Enero 2020 hasta Abril 2021. De nuevo, se considera una muestra suficiente para los fines de un estudio académico.
+
+Los datos recolectados provienen de la información de los tickets procesado por cada caja de cada tienda. Se ha tenido acceso a un dataset procesado en un proyecto anterior en DIA que, procesando los datos de tickets, generó una tabla de datos agregados en tramos de 15 minutos. El siguiente es un ejemplo de los datos que contiene la tabla para los 4 tramos de 15 minutos de una fecha/hora específica:
+
+```{r recoleccion_datos_1}
+filter(data_1290,FECHA=="2020-08-17",HORA==13)
+```
+
+##Variables relevantes
+El dataset recolectado contiene 43 variables. De estas, las siguientes son las variables consideradas relevantes para este estudio:
+
+- **NEGOCIO:** se refiere a la enseña del negocio de DIA. Estas pueden ser: DIA, La Plaza, Clarel. Los DIA y La Plaza son los supermercados, y las tiendas CLAREL son de productos cosméticos.
+- **TIENDA_ID:** número identificador de la tienda en la base de datos.
+- **CAJA:** número identificador de la caja (TPV) dentro de la tienda.
+- **FECHA:** fecha de la venta
+- **HORA:** tramo horario, en horas enteras, por ejemplo, un registro de las 10:15 de la mañana cae dentro del valor de la variable HORA = 10
+- **TRAMO:** tramo horario de 15 minutos. Por ejemplo, un registro de las 10:10 cae dentro del tramo horario 10:00, y luego un registro del tramo horario 10:16 cae dentro del tramo 10:15, y asi sucesivamente.
+- **N_TICKETS**": es la cantidad de tickets que ha procesado la caja durante el tramo correspondiente de 15 minutos. Por ejemplo, si estamos en la hora 10, tramo 10:00, y el valor de N_TICKETS = 20, quiere decir que en el tramo que va desde las 10:00 a las 10:14 con 59 segundos, la caja proceso 20 tickets de compra, es decir, atendió a 20 clientes. Esta es la variable más importante del estudio, ya que la cantidad de clientes que atiende cada caja por unidad de tiempo es un indicador directo de la congestión de la caja.
+- **VENTA_SIN_IVA:"** venta total en euros, sin IVA, que proceso la caja en el tramo correspondiente de 15 minutos.
+- **MEDIA_VENTA_SIN_IVA:** es el valor medio en euros, sin IVA, que tienen los tickets procesados durante el tramo de 15 minutos.
+- **MIN_VENTA_SIN_IVA, MAX_VENTA_SIN_IVA:** son los valores mínimos y máximos en euros, sin IVA, que tienen los tickets procesados por la caja en el tramo correspondiente de 15 minutos.
+- **Mismas variables de venta, pero con IVA:** se tienen las mismas variables anteriores, pero con IVA.
+
+**Otras variables en el conjunto de datos:**
+
+Se tienen variables sobre la cantidad de artículos distintos procesados por la caja, media de artículos distintos por ticket, mínimo y máximo de artículos distintos, cantidad de líneas de tickets, cantidad de unidades y de kilos de artículos procesados por las cajas, todo calculado en tramos de 15 minutos.
+
+## Visualización de las series temporales de cantidad de tickets por caja por unidad de tiempo
+Una forma que se plantea para analizar la congestión de las cajas de cada tienda, es visualizando la cantidad de tickets que procesa una caja en tramos de 15 minutos
+
+
+
+
+
+# Observaciones y notas generales
+1. Las cajas abren y cierran durante el día, es decir, no siempre están abiertas todas las cajas de una tienda.
+2. En la muestra inicial de 10 tiendas, tengo tiendas con 2 cajas, hasta tiendas con 6 cajas.
+3. IDEA: un indicativo de congestión podrían ser los momentos en los que están abiertas todas las cajas de la tienda.
+4. IDEA: 
+- hacer una serie temporal de cada tienda a total, es decir, sumando los tickets de todas las cajas en todos los tramos horarios
+- Ver medias de tickets por tramos a total de la tienda vs por cada caja. 
+- Buscar la relación entre la media de tickets por tramo por tienda y por caja para ver la relación con la congestión.
+- Si tengo una serie temporal de cantidad de tickets por tienda, y analizo cuántos tickets promedio atiene 1 caja, puedo marcar por tramo horario la cantidad de cajas que harán falta abrir en cada tramo. 
+
+# Dudas a consultar sobre los datos
+- ¿qué diferencia hay entre las tablas es_productividad y productividad en el dataset es_productividad_pro?
+
+- Las horas/tramos en los que hay datos son las horas donde la caja ha transmitido, pero ¿qué pasa en los tramos en la que la caja estaba abierta pero no procesó tickets? NOTA: N_TICKETS nunca es cero (el mínimo en la muestra es 1 y el máximo es 33)
+
+- ¿Las cajas son siempre las mismas, mismos ID? Por ejemplo, la caja 2 de una tienda X en un registro de enero 2020, ¿es la misma caja 2 de la misma tienda en un registro de abril 2021?
+
+# Visualización de los datos
+```{r visualizacion}
+
+library(plotly)
+library(lubridate)
+
+
+dat_plot <- filter(data_52288,FECHA>="2021-02-22" & FECHA<="2021-02-28",CAJA==4)
+
+# x = as.Date(df$Date, format= "%Y-%m-%d HH:MM")
+# mdy_hms(DateTime2,tz=Sys.timezone())
+
+#fig <- fig %>% layout(title = 'Primates Brain and Body Weight',
+#         xaxis = list(title = 'Body Weight (kg)',
+#                      zeroline = TRUE,
+#                      range = c(0, 250)),
+#         yaxis = list(title = 'Brain Weight (g)',
+#                      range = c(0,1400)))
+
+fig1 <- plot_ly(
+  x = ymd_hms(as.character(dat_plot$FECHA_TRAMO)),
+  y = dat_plot$N_TICKETS,
+  name = "Tickets tienda 52288",
+  type = "bar"
+)
+
+fig1 <- fig1 %>% layout(
+  title = "Número de tickets tienda 52288 Semana del 22/02/21",
+  xaxis = list(title="Fecha"),
+  yaxis = list(title="Número de tickets por tramo de 15 minutos")
+)
+
+fig1
+
+#venta por caja
+
+dat_plot_2 <- filter(data_52288,FECHA>="2021-02-22" & FECHA<="2021-02-22",CAJA==2)
+dat_plot_3 <- filter(data_52288,FECHA>="2021-02-22" & FECHA<="2021-02-22",CAJA==3)
+dat_plot_4 <- filter(data_52288,FECHA>="2021-02-22" & FECHA<="2021-02-22",CAJA==4)
+
+fig2 <- plot_ly(
+  x = ymd_hms(as.character(dat_plot_4$FECHA_TRAMO)),
+  y = dat_plot_4$N_TICKETS,
+  name = "Caja 4",
+  type = "bar"
+)
+
+fig2 <- fig2 %>% add_trace(
+  x = ymd_hms(as.character(dat_plot_3$FECHA_TRAMO)),
+  y = dat_plot_3$N_TICKETS,
+  name = "Caja 3",
+  type = "bar"
+)
+
+fig2 <- fig2 %>% add_trace(
+  x = ymd_hms(as.character(dat_plot_2$FECHA_TRAMO)),
+  y = dat_plot_2$N_TICKETS,
+  name = "Caja 2",
+  type = "bar"
+)
+
+fig2 <- fig2 %>% layout(
+  title = "Número de tickets tienda 52288 Semana del 22/02/21",
+  xaxis = list(title="Fecha"),
+  yaxis = list(title="Número de tickets por tramo de 15 minutos")
+)
+
+fig2
+
+#venta por caja en otra fecha
+
+dat_plot_2 <- filter(data_52288,FECHA>="2021-01-26" & FECHA<="2021-01-26",CAJA==2)
+dat_plot_3 <- filter(data_52288,FECHA>="2021-01-26" & FECHA<="2021-01-26",CAJA==3)
+dat_plot_4 <- filter(data_52288,FECHA>="2021-01-26" & FECHA<="2021-01-26",CAJA==4)
+
+fig2 <- plot_ly(
+  x = ymd_hms(as.character(dat_plot_4$FECHA_TRAMO)),
+  y = dat_plot_4$N_TICKETS,
+  name = "Caja 4",
+  type = "bar"
+)
+
+fig2 <- fig2 %>% add_trace(
+  x = ymd_hms(as.character(dat_plot_3$FECHA_TRAMO)),
+  y = dat_plot_3$N_TICKETS,
+  name = "Caja 3",
+  type = "bar"
+)
+
+fig2 <- fig2 %>% add_trace(
+  x = ymd_hms(as.character(dat_plot_2$FECHA_TRAMO)),
+  y = dat_plot_2$N_TICKETS,
+  name = "Caja 2",
+  type = "bar"
+)
+
+fig2 <- fig2 %>% layout(
+  title = "Número de tickets tienda 52288",
+  xaxis = list(title="Fecha"),
+  yaxis = list(title="Número de tickets por tramo de 15 minutos")
+)
+
+fig2
+
+
+#total de venta de una tienda agrupando todas las cajas
+
+dat_plot_total_cajas_5228 <- data_52288 %>% 
+  group_by(FECHA,HORA,TRAMO,FECHA_TRAMO) %>% 
+  summarise(N_TICKETS=sum(N_TICKETS)) %>%
+  filter(FECHA>="2021-02-22" & FECHA<="2021-02-28")
+
+fig3 <- plot_ly(
+  x = ymd_hms(as.character(dat_plot_total_cajas_5228$FECHA_TRAMO)),
+  y = dat_plot_total_cajas_5228$N_TICKETS,
+  name = "Total todas las cajas",
+  type = "bar"
+)
+
+fig3 <- fig3 %>% layout(
+  title = "Número de tickets tienda 52288 - Semana del 22/02/21",
+  xaxis = list(title="Fecha"),
+  yaxis = list(title="Número de tickets por tramo de 15 minutos")
+)
+
+fig3
+
+
+# venta por caja, total de tickets en la tienda, media de venta sin iva
+
+dat_plot_total_cajas_5228 <- data_52288 %>% 
+  group_by(FECHA,HORA,TRAMO,FECHA_TRAMO) %>% 
+  summarise(N_TICKETS=sum(N_TICKETS),VENTA_SIN_IVA=sum(VENTA_SIN_IVA)) %>%
+  mutate(VENTA_MEDIA_SIN_IVA=VENTA_SIN_IVA/N_TICKETS) %>%
+  filter(FECHA>="2021-02-22" & FECHA<="2021-02-28")
+
+dat_plot_2 <- filter(data_52288,FECHA>="2021-02-22" & FECHA<="2021-02-28",CAJA==2)
+dat_plot_3 <- filter(data_52288,FECHA>="2021-02-22" & FECHA<="2021-02-28",CAJA==3)
+dat_plot_4 <- filter(data_52288,FECHA>="2021-02-22" & FECHA<="2021-02-28",CAJA==4)
+
+fig8 <- plot_ly(
+  x = ymd_hms(as.character(dat_plot_4$FECHA_TRAMO)),
+  y = dat_plot_4$N_TICKETS,
+  name = "Caja 4",
+  type = "bar"
+)
+
+fig8 <- fig8 %>% add_trace(
+  x = ymd_hms(as.character(dat_plot_3$FECHA_TRAMO)),
+  y = dat_plot_3$N_TICKETS,
+  name = "Caja 3",
+  type = "bar"
+)
+
+fig8 <- fig8 %>% add_trace(
+  x = ymd_hms(as.character(dat_plot_2$FECHA_TRAMO)),
+  y = dat_plot_2$N_TICKETS,
+  name = "Caja 2",
+  type = "bar"
+)
+
+fig8 <- fig8 %>% add_trace(
+  x = ymd_hms(as.character(dat_plot_total_cajas_5228$FECHA_TRAMO)),
+  y = dat_plot_total_cajas_5228$N_TICKETS,
+  name = "Tickets Total Tienda",
+  type = "bar"
+)
+
+fig8 <- fig8 %>% add_trace(
+  x = ymd_hms(as.character(dat_plot_total_cajas_5228$FECHA_TRAMO)),
+  y = dat_plot_total_cajas_5228$VENTA_MEDIA_SIN_IVA,
+  name = "Ticket Medio Total Tienda",
+  type = "bar"
+)
+
+fig8 <- fig8 %>% layout(
+  title = "Número de tickets tienda 52288 Semana del 22/02/21",
+  xaxis = list(title="Fecha"),
+  yaxis = list(title="Número de tickets por tramo de 15 minutos")
+)
+
+fig8
+
+
+
+```
+
+
+# Análisis Univariable
+
+```{r analisis_univariable}
+
+# se limpian los datos quitando venta negativa o venta mayor a 2000€
+data_por_tramo_total_cajas <- data %>% 
+  group_by(TIENDA_ID,FECHA,HORA,TRAMO,FECHA_TRAMO) %>% 
+  summarise(N_TICKETS=sum(N_TICKETS),VENTA_SIN_IVA=sum(VENTA_SIN_IVA),UNIDADES=sum(UNIDADES),KILOS=sum(KILOS)) %>%
+  filter(VENTA_SIN_IVA>=0 & UNIDADES>=0 & KILOS>=0,VENTA_SIN_IVA<=2000)
+
+test3 <- filter(data_por_tramo_total_cajas,FECHA=="2020-01-02",TIENDA_ID==52288,HORA==13)
+# test3 el número de tickets tiene que dar 31, 16, 26, 17 para un total de 90
+
+summary(data_por_tramo_total_cajas)
+
+fig4 <- plot_ly(y= ~data_por_tramo_total_cajas$N_TICKETS, type="box", name="Número de tickets") %>% 
+  layout(
+  title = "Distribución de la variable Número de Tickets",
+  yaxis = list(title="Número de tickets por tramo de 15 minutos")
+)
+
+fig4
+
+```
+
+# Feature Engineering
+
+```{r feature_engineering}
+
+# venta por caja, total de tickets en la tienda, media de venta sin iva
+
+#dat_plot_cajas_tramo_5228 <- data_52288 %>% 
+#  group_by(FECHA_TRAMO,CAJA) %>% 
+#  summarise(N_TICKETS=sum(N_TICKETS),VENTA_SIN_IVA=sum(VENTA_SIN_IVA),FECHA=FECHA) %>%
+#  filter(FECHA>="2021-02-22" & FECHA<="2021-02-28")
+
+#dat_plot_cajas_tramo_5228_2 <- dat_plot_cajas_tramo_5228 %>% 
+#  group_by(FECHA_TRAMO) %>% summarise(N_TICKETS=sum(N_TICKETS),VENTA_SIN_IVA=sum(VENTA_SIN_IVA),N_CAJAS=n(),FECHA=FECHA) %>%
+#  filter(FECHA>="2021-02-22" & FECHA<="2021-02-28") %>%
+#  distinct_all()
+
+dat_plot_cajas_tramo_5228 <- data_52288 %>% 
+  group_by(FECHA_TRAMO,CAJA) %>% 
+  summarise(N_TICKETS=sum(N_TICKETS),VENTA_SIN_IVA=sum(VENTA_SIN_IVA),UNIDADES=sum(UNIDADES),FECHA=FECHA) 
+
+dat_plot_cajas_tramo_5228_2 <- dat_plot_cajas_tramo_5228 %>% 
+  group_by(FECHA_TRAMO) %>% summarise(N_TICKETS=sum(N_TICKETS),VENTA_SIN_IVA=sum(VENTA_SIN_IVA),UNIDADES=sum(UNIDADES),N_CAJAS=n(),FECHA=FECHA) %>%
+  distinct_all() %>%
+  filter(VENTA_SIN_IVA>0) %>%
+  mutate(TICKET_MEDIO=VENTA_SIN_IVA/N_TICKETS) %>%
+  filter(FECHA>="2021-02-22" & FECHA<="2021-02-28")
+
+#ESTANDARIZACIÓN DE LAS VARIABLES N_TICKETS, UNIDADES, TICKET_MEDIO
+
+dat_plot_cajas_tramo_5228_2$N_TICKETS_STD <- dat_plot_cajas_tramo_5228_2$N_TICKETS/max(dat_plot_cajas_tramo_5228_2$N_TICKETS)
+
+dat_plot_cajas_tramo_5228_2$UNIDADES_STD <- dat_plot_cajas_tramo_5228_2$UNIDADES/max(dat_plot_cajas_tramo_5228_2$UNIDADES)
+
+dat_plot_cajas_tramo_5228_2$TICKET_MEDIO_STD <- dat_plot_cajas_tramo_5228_2$TICKET_MEDIO/max(dat_plot_cajas_tramo_5228_2$TICKET_MEDIO)
+
+#NUEVA VARIABLE: IND_CONGESTION
+
+dat_plot_cajas_tramo_5228_2 <- mutate(dat_plot_cajas_tramo_5228_2,IND_CONGESTION=N_TICKETS_STD*UNIDADES_STD*TICKET_MEDIO_STD)
+
+summary(dat_plot_cajas_tramo_5228_2)
+
+#gráfico en dos ejes
+
+fig9 <- plot_ly(
+  x = ymd_hms(as.character(dat_plot_cajas_tramo_5228_2$FECHA_TRAMO)),
+  y = dat_plot_cajas_tramo_5228_2$N_TICKETS,
+  name = "N_TICKETS",
+  type = "scatter",
+  line = list(color ="green",width=2),
+  mode = "line"
+)
+
+fig9 <- fig9 %>% add_trace(
+  x = ymd_hms(as.character(dat_plot_cajas_tramo_5228_2$FECHA_TRAMO)),
+  y = dat_plot_cajas_tramo_5228_2$UNIDADES,
+  name = "UNIDADES",
+  type = "scatter",
+  yaxis="y2",
+  mode = "line"
+)
+
+fig9 <- fig9 %>% add_trace(
+  x = ymd_hms(as.character(dat_plot_cajas_tramo_5228_2$FECHA_TRAMO)),
+  y = dat_plot_cajas_tramo_5228_2$TICKET_MEDIO,
+  name = "TICKET MEDIO",
+  type = "scatter",
+  mode = "line"
+)
+
+fig9 <- fig9 %>% add_trace(
+  x = ymd_hms(as.character(dat_plot_cajas_tramo_5228_2$FECHA_TRAMO)),
+  y = dat_plot_cajas_tramo_5228_2$N_CAJAS,
+  name = "Cajas abiertas",
+  type = "bar"
+  )
+
+fig9 <- fig9 %>% layout(
+  yaxis2 = list(overlaying = "y", side = "right",title="Ticket medio €"),
+  title = "Número de tickets tienda 52288 Semana del 22/02/21",
+  xaxis = list(title="Fecha"),
+  yaxis = list(title="Número de tickets por tramo de 15 minutos")
+)
+
+
+#gráfico del índice de congestión
+
+fig10 <- plot_ly(
+  x = ymd_hms(as.character(dat_plot_cajas_tramo_5228_2$FECHA_TRAMO)),
+  y = dat_plot_cajas_tramo_5228_2$N_CAJAS,
+  name = "CAJAS ABIERTAS",
+  type = "bar"
+)
+
+fig10 <- fig10 %>% add_trace(
+  x = ymd_hms(as.character(dat_plot_cajas_tramo_5228_2$FECHA_TRAMO)),
+  y = dat_plot_cajas_tramo_5228_2$IND_CONGESTION,
+  name = "IND CONGESTION",
+  type = "scatter",
+  mode = "line",
+  line = list(color ="red",width=2),
+  yaxis = "y2"
+)
+
+fig10 <- fig10 %>% layout(
+  yaxis2 = list(overlaying = "y", side = "right",title="Índice de Congestión de Caja (0 a 1)"),
+  title = "Índice de Congestión - Tienda 52288 Semana del 22/02/21",
+  xaxis = list(title="Fecha"),
+  yaxis = list(title="Cajas abiertas")
+)
+
+#gráfico del índice de congestión
+
+fig11 <- plot_ly(
+  x = ymd_hms(as.character(dat_plot_cajas_tramo_5228_2$FECHA_TRAMO)),
+  y = dat_plot_cajas_tramo_5228_2$IND_CONGESTION,
+  name = "IND CONGESTION",
+  type = "scatter",
+  mode = "line",
+  line = list(color ="brown",width=2),
+)
+
+
+fig11 <- fig11 %>% layout(
+  xaxis = list(title="Fecha"),
+  yaxis = list(title="Ind de Congestión")
+)
+
+```
